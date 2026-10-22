@@ -110,7 +110,7 @@ Weekly routine (Wednesday afternoon, after the CDC data update): run scripts 01,
 
 ## AI assistance
 
-Code and documentation were drafted with help from Claude (Anthropic). All modelling choices were reviewed by the author, and every script was run and checked by the author. A full disclosure will accompany the paper.
+Code and documentation were drafted with help from Claude (Anthropic). All modelling choices were reviewed by the author, and every script was run and checked by the author. A full disclosure will accompany the paper, which will be posted as a preprint at the end of the season.
 
 ## License
 

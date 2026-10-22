@@ -1,0 +1,23 @@
+# Python virtual environment and caches
+.venv/
+__pycache__/
+*.pyc
+
+# Editor / OS clutter
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Note: data/raw/ snapshots ARE committed on purpose - they record what the
+# data looked like on each forecast day, which the paper needs.
+
+# LaTeX build files (keep main.tex, references.bib and main.pdf)
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.synctex.gz
+
+# Paper draft is kept private (Overleaf / private repo) until the preprint
+paper/

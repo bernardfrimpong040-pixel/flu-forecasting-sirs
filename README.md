@@ -3,7 +3,7 @@
 Real-time forecasts of weekly influenza hospital admissions for all 50 US states, DC, Puerto Rico and the nation, submitted every week to the CDC's **FluSight 2026–27** forecasting challenge. The project builds from a simple baseline to a mechanistic **SIRS differential-equation model**, and ends with a paper comparing the approaches on a full season of live, prospective forecasts.
 
 **Author:** Bernard Frimpong — M.S. Applied Mathematics, University of Akron
-**FluSight team / models:** `BFrimpong-baseline` (Stage 1, since Oct 24, 2026) · `BFrimpong-trend` (Stage 2, from Oct 31, 2026)
+**FluSight team / models:** `BFrimpong-baseline` (Stage 1, since Oct 24, 2026) · `BFrimpong-trend` (Stage 2, from Oct 31, 2026) · `BFrimpong-sirs` (Stage 3, from Nov 7, 2026)
 **Season:** October 7, 2026 – May 26, 2027 · forecasts due every Wednesday, 11 PM Eastern
 
 ---
@@ -20,12 +20,57 @@ Every forecast is pushed to the CDC's public repository before the true numbers 
 | --- | --- | --- |
 | 1 | Flat baseline on the log scale; data pipeline; validator; backtest | **Done** — first submission Oct 24, 2026 |
 | 2 | Damped growth model (recent log-linear trend, damped) | **Done** — live from Oct 31, 2026 |
-| 3 | SIRS model with a time-varying transmission rate, fitted per state | Next |
-| 4 | Uncertainty from an ensemble / particle filter | Planned |
+| 3 | SIRS model (RK4) with weekly R_t and susceptible depletion | **Done** — live from Nov 7, 2026 |
+| 4 | Learn the susceptible pool from the current season; uncertainty from an ensemble / particle filter | Next |
 | 5 | Hybrid: SIRS plus a small machine-learning error correction | Stretch |
 | 6 | Season evaluation and paper (medRxiv, then journal) | June 2027 |
 
-Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md)
+Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md) · [STAGE3_GUIDE.md](STAGE3_GUIDE.md)
+
+## Stage 3 results: the SIRS model
+
+**The model.** An SIRS model (γ = 1/3 per day, ω = 1/365 per day) is solved forward four weeks with RK4 for every location, every week. Its reproduction number R_t = 1 + (r/7)/γ comes from the recent growth rate r, and its susceptible fraction falls as this season's admissions accumulate:
+
+s_now = 1 − κ × (admissions so far this season) ÷ (typical past season total).
+
+κ, the share of the season-start susceptibles a typical season uses, is the only tuned parameter. Growth slows because susceptibles run out, not because a damping factor says so.
+
+**Fair test** (same rule as Stage 2: κ chosen on 2023–24 + 2024–25, scored once on 2025–26):
+
+| κ | 2023–24 | 2024–25 | 2025–26 | Tuning mean | All-three mean |
+| --- | --- | --- | --- | --- | --- |
+| 0.2 | 1.011 | 0.925 | 1.263 | 0.968 | 1.066 |
+| **0.3** | 0.870 | 0.874 | **0.997** | **0.872** | 0.914 |
+| 0.4 | 0.784 | 1.064 | 0.828 | 0.924 | **0.892** |
+| 0.5 | 0.746 | 1.369 | 0.720 | 1.058 | 0.945 |
+| 0.6 | 0.760 | 1.563 | 0.658 | 1.162 | 0.994 |
+
+The rule picks κ = 0.3, which ties the baseline on the test season (0.997) and is 3.4% better than the Stage 2 trend model (relative WIS 0.966). Live forecasts use κ = 0.4, the best over all three seasons.
+
+| Test season 2025–26, by phase | Trend vs baseline | SIRS vs baseline | Bias: baseline → trend → SIRS (admissions) |
+| --- | --- | --- | --- |
+| Growth | 0.831 | **0.788** | −79 → −61 → **−8** |
+| Peak (± 2 weeks) | 1.009 | 1.049 | −416 → −130 → +320 |
+| Decline | 1.110 | 0.987 | +138 → +137 → +56 |
+
+![SIRS vs trend vs baseline](results/05_sirs_us_forecasts.png)
+
+**What this shows.**
+- **Growth:** the mechanism removes almost all of the lag; the average bias falls from −79 to −8 admissions.
+- **Decline:** once R_t is below 1, the SIRS model decays smoothly instead of chasing noise, closing the trend model's 11% deficit.
+- **Peak:** the turn comes only when enough susceptibles are used up, so the model is only as good as its estimate of the pool. The best κ differs strongly by season:
+
+![Best KAPPA by season](results/06_kappa_by_season.png)
+
+The reason is season size. The model assumes this season will be about as big as a typical past season:
+
+| Season | US total admissions | "Typical" assumed | Actual ÷ typical |
+| --- | --- | --- | --- |
+| 2023–24 | 254,490 | 229,663 | 1.11 |
+| 2024–25 | 558,926 | 242,077 | **2.31** |
+| 2025–26 | 335,989 | 347,693 | 0.97 |
+
+In the normal-sized seasons a larger κ (0.5–0.6) is 24–34% better than the baseline. In 2024–25, a season more than twice the usual size, a large κ predicts the turn far too early. A fixed κ cannot serve both. **Stage 4** will therefore learn the size of the susceptible pool from the current season's data as it unfolds.
 
 ## Stage 2 results: trend vs baseline
 
@@ -87,32 +132,45 @@ The ranges are honest one week out but too narrow further ahead, because weekly 
 2. Median *k* weeks ahead = last value × exp(*r* × (φ + φ² + … + φᵏ)), with damping φ = 0.4, so each extra week keeps only 40% of the previous week's growth.
 3. Same spread as the baseline, centred on the new median.
 
+**Stage 3 — SIRS**
+1. R_t = 1 + (*r* ÷ 7) ÷ γ from the same growth rate; γ = 1/3 per day.
+2. Susceptibles left s_now = 1 − κ × (season so far ÷ typical season), κ = 0.4.
+3. β = γ R_t ÷ s_now; the infectious fraction reproduces this week's admissions.
+4. Solve the SIRS equations 4 weeks ahead with RK4 (step 0.5 day); weekly new infections give the median.
+5. Same spread as the baseline, centred on the SIRS median.
+
 ## Repository layout
 
 ```
 flu-forecasting-sirs/
 ├── README.md
 ├── STAGE1_GUIDE.md                 Stage 1 guide and how to submit
-├── STAGE2_GUIDE.md                 Stage 2 guide and the new weekly routine
+├── STAGE2_GUIDE.md                 Stage 2 guide and the two-model weekly routine
+├── STAGE3_GUIDE.md                 Stage 3 guide and the three-model weekly routine
 ├── requirements.txt                pinned package versions
 ├── scripts/
 │   ├── common.py                   shared settings: names, quantile levels, paths
 │   ├── baseline_model.py           Stage 1 model
 │   ├── trend_model.py              Stage 2 model
-│   ├── scoring.py                  WIS and coverage, shared by all comparisons
+│   ├── sirs_model.py               Stage 3 model (SIRS equations, RK4)
+│   ├── scoring.py                  WIS, coverage and backtest helpers
 │   ├── 01_download_data.py         download latest data + dated snapshot
 │   ├── 02_explore_data.py          season plots and peaks
 │   ├── 03_baseline_forecast.py     weekly baseline submission file
 │   ├── 04_validate_submission.py   check every model's newest file against FluSight rules
 │   ├── 05_backtest_baseline.py     score the baseline on last season
 │   ├── 06_trend_forecast.py        weekly trend submission file
-│   └── 07_backtest_compare.py      tune and test the trend model against the baseline
+│   ├── 07_backtest_compare.py      tune and test the trend model against the baseline
+│   ├── 08_sirs_forecast.py         weekly SIRS submission file
+│   └── 09_backtest_sirs.py         tune and test SIRS against baseline and trend
 ├── model-metadata/
 │   ├── BFrimpong-baseline.yml
-│   └── BFrimpong-trend.yml
+│   ├── BFrimpong-trend.yml
+│   └── BFrimpong-sirs.yml
 ├── model-output/
 │   ├── BFrimpong-baseline/         one forecast file per week
-│   └── BFrimpong-trend/
+│   ├── BFrimpong-trend/
+│   └── BFrimpong-sirs/
 ├── data/                           latest data + data/raw/ dated snapshots
 └── results/                        plots and score tables
 ```
@@ -128,15 +186,18 @@ python scripts/01_download_data.py
 python scripts/02_explore_data.py
 python scripts/03_baseline_forecast.py
 python scripts/06_trend_forecast.py
+python scripts/08_sirs_forecast.py
 python scripts/04_validate_submission.py
 python scripts/05_backtest_baseline.py
 python scripts/07_backtest_compare.py
 python scripts/07_backtest_compare.py --tune
+python scripts/09_backtest_sirs.py
+python scripts/09_backtest_sirs.py --tune
 ```
 
-The last command redoes the full tuning grid and takes several minutes.
+The two `--tune` commands redo the tuning grids and take about 5 and 10 minutes.
 
-**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06 and 04, then submit both files (see [STAGE2_GUIDE.md](STAGE2_GUIDE.md), Part 3).
+**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06, 08 and 04, then submit the files (see [STAGE3_GUIDE.md](STAGE3_GUIDE.md), Part 3).
 
 ## Data
 

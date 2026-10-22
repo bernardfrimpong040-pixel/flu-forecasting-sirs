@@ -68,7 +68,8 @@ def forecast_one_location(location_rows, reference_date, window=WINDOW, phi=PHI)
 
     # The trend: current growth rate, damped for each week ahead.
     rate = growth_rate(rows_sorted, window)
-    damping = np.cumsum([phi ** j for j in range(1, MAX_STEPS + 1)])   # PHI, PHI+PHI^2, ...
+    weeks_needed = max(MAX_STEPS, (reference_date + timedelta(weeks=max(common.HORIZONS)) - last_date).days // 7)
+    damping = np.cumsum([phi ** j for j in range(1, weeks_needed + 1)])  # PHI, PHI+PHI^2, ...
 
     # The spread: exactly the baseline's (symmetric in-season weekly changes).
     recent = rows_sorted[rows_sorted["date"] > last["date"] - timedelta(weeks=baseline_model.HISTORY_WEEKS)]
@@ -79,7 +80,7 @@ def forecast_one_location(location_rows, reference_date, window=WINDOW, phi=PHI)
     for horizon in common.HORIZONS:
         target_end_date = reference_date + timedelta(weeks=horizon)
         steps = (target_end_date - last_date).days // 7            # 1 to 4 normally
-        trend = rate * damping[min(steps, MAX_STEPS) - 1]          # how far the centre moves
+        trend = rate * damping[steps - 1]                          # how far the centre moves
         values = np.exp(z_last + trend + np.sqrt(steps) * one_week_quantiles) - 1
         values = np.maximum(np.round(values), 0)                   # whole numbers, never negative
         values = np.maximum.accumulate(values)                     # quantiles never decrease

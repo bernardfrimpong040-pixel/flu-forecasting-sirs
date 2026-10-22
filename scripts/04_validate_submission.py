@@ -7,10 +7,11 @@ you open the pull request. This script repeats the important ones in Python, so
 mistakes are caught on your laptop instead of in public.
 
 Usage:
-    python scripts/04_validate_submission.py                  # checks the newest file
-    python scripts/04_validate_submission.py path/to/file.csv # checks a chosen file
+    python scripts/04_validate_submission.py                  # newest file of EVERY model
+    python scripts/04_validate_submission.py path/to/file.csv # one chosen file
 
-It also checks the model metadata file (model-metadata/BFrimpong-baseline.yml).
+For each forecast file it also checks that model's metadata file
+(model-metadata/<team>-<model>.yml).
 """
 
 import re                                # "regular expressions": pattern matching on text
@@ -114,14 +115,16 @@ def validate_forecast(path):
 
     print(f"\nSummary: {hosp['location'].nunique()} locations, "
           f"horizons {sorted(int(h) for h in hosp['horizon'].unique())}, {len(df):,} rows")
+    return model_id
 
 
-def validate_metadata():
-    print(f"\nChecking metadata file: {common.METADATA_FILE.relative_to(common.REPO_DIR)}\n")
-    check(common.METADATA_FILE.exists(), "metadata file exists")
-    if not common.METADATA_FILE.exists():
+def validate_metadata(model_id):
+    metadata_file = common.REPO_DIR / "model-metadata" / f"{model_id}.yml"
+    print(f"\nChecking metadata file: {metadata_file.relative_to(common.REPO_DIR)}\n")
+    check(metadata_file.exists(), "metadata file exists")
+    if not metadata_file.exists():
         return
-    with open(common.METADATA_FILE, encoding="utf-8") as f:
+    with open(metadata_file, encoding="utf-8") as f:
         meta = yaml.safe_load(f)
 
     missing = [key for key in REQUIRED_METADATA if key not in meta]
@@ -129,8 +132,8 @@ def validate_metadata():
     name_ok = re.fullmatch(r"[A-Za-z0-9_+]{1,15}", str(meta.get("team_abbr", ""))) and \
         re.fullmatch(r"[A-Za-z0-9_+]{1,15}", str(meta.get("model_abbr", "")))
     check(bool(name_ok), "team_abbr and model_abbr use only letters, numbers, '_' (max 15)")
-    check(f"{meta.get('team_abbr')}-{meta.get('model_abbr')}" == common.MODEL_ID,
-          f"team_abbr-model_abbr matches '{common.MODEL_ID}' (file name and common.py)")
+    check(f"{meta.get('team_abbr')}-{meta.get('model_abbr')}" == model_id,
+          f"team_abbr-model_abbr matches '{model_id}' (the file and folder name)")
     check(len(str(meta.get("methods", ""))) <= 200, "methods is 200 characters or fewer")
     check(meta.get("license") in VALID_LICENSES, "license is one of the accepted licenses")
     for key in ["designated_model", "ensemble_of_models", "ensemble_of_hub_models"]:
@@ -145,15 +148,22 @@ def validate_metadata():
 
 def main():
     if len(sys.argv) > 1:
-        path = Path(sys.argv[1]).resolve()       # the file you named, as a full path
+        paths = [Path(sys.argv[1]).resolve()]    # the file you named, as a full path
     else:
-        files = sorted(common.OUTPUT_DIR.glob("*.csv"))
-        if not files:
+        # The newest file (names sort by date) in every model's folder.
+        paths = []
+        for model_dir in sorted((common.REPO_DIR / "model-output").glob("*")):
+            files = sorted(model_dir.glob("*.csv"))
+            if files:
+                paths.append(files[-1])
+        if not paths:
             raise SystemExit("No forecast files yet. Run 03_baseline_forecast.py first.")
-        path = files[-1]                         # newest reference date (names sort by date)
 
-    validate_forecast(path)
-    validate_metadata()
+    for path in paths:
+        print("=" * 70)
+        model_id = validate_forecast(path)
+        if model_id:
+            validate_metadata(model_id)
 
     print()
     if failures:

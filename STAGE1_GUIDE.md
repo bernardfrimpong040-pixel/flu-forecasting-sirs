@@ -154,6 +154,20 @@ The reference date is always the Saturday after the Wednesday. Script 03 prints 
 
 ---
 
+## Part 6 — The working paper (`paper/`)
+
+`paper/main.tex` is the paper draft **and** the project log, written as we go:
+
+- **Paper sections** (Introduction, Data, Methods, Evaluation, Results, Discussion). Stage 1 is already written up: the baseline equations, the WIS formula, the backtest table and figures. Red text in brackets marks numbers that only exist at the end of the season.
+- **Blue boxes** are notes to ourselves (status, planned methods). They are deleted before submission.
+- **Appendix A, Project log**: goals, stage progress, decisions and reasons, open questions, and a weekly submission log.
+
+To compile on your laptop (from the `paper` folder): `pdflatex main`, `bibtex main`, `pdflatex main`, `pdflatex main`. Or upload `main.tex`, `references.bib` and the three PNG files from `results/` to a new Overleaf project.
+
+Each Wednesday, add one row to the weekly submission log (Appendix A.5). Each new stage, I'll send pasteable LaTeX snippets for the new sections.
+
+---
+
 ## Next: Stage 2
 
 A statistical growth model: instead of assuming next week equals this week, it estimates whether admissions are growing or shrinking and by how much. The backtest above shows exactly why this matters — the flat baseline misses every rise and every fall.

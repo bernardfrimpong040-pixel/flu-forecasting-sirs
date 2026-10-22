@@ -21,6 +21,10 @@ MODEL_ABBR = "baseline"
 # The hub calls the pair "team-model". It names your folder and your files.
 MODEL_ID = f"{TEAM_ABBR}-{MODEL_ABBR}"
 
+# Stage 2 adds a second model with its own name, folder and metadata file.
+TREND_MODEL_ABBR = "trend"
+TREND_MODEL_ID = f"{TEAM_ABBR}-{TREND_MODEL_ABBR}"
+
 
 # --- Folders inside this repository --------------------------------------
 # Path(__file__) is this file; .parent is scripts/; .parent again is the repo.
@@ -30,6 +34,8 @@ RAW_DIR = DATA_DIR / "raw"                         # one dated copy per week
 RESULTS_DIR = REPO_DIR / "results"                 # plots and score tables
 OUTPUT_DIR = REPO_DIR / "model-output" / MODEL_ID  # weekly submission files
 METADATA_FILE = REPO_DIR / "model-metadata" / f"{MODEL_ID}.yml"
+TREND_OUTPUT_DIR = REPO_DIR / "model-output" / TREND_MODEL_ID
+TREND_METADATA_FILE = REPO_DIR / "model-metadata" / f"{TREND_MODEL_ID}.yml"
 
 # The "latest" copies that the other scripts read.
 TARGET_FILE = DATA_DIR / "target-hospital-admissions.csv"

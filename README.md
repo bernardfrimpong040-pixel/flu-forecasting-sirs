@@ -3,7 +3,7 @@
 Real-time forecasts of weekly influenza hospital admissions for all 50 US states, DC, Puerto Rico and the nation, submitted every week to the CDC's **FluSight 2026–27** forecasting challenge. The project builds from a simple baseline to a mechanistic **SIRS differential-equation model**, and ends with a paper comparing the approaches on a full season of live, prospective forecasts.
 
 **Author:** Bernard Frimpong — M.S. Applied Mathematics, University of Akron
-**FluSight team / models:** `BFrimpong-baseline` (Stage 1, since Oct 24, 2026) · `BFrimpong-trend` (Stage 2, from Oct 31, 2026) · `BFrimpong-sirs` (Stage 3, from Nov 7, 2026)
+**FluSight team / models:** `BFrimpong-baseline` (Stage 1, since Oct 24, 2026) · `BFrimpong-trend` (Stage 2, from Oct 31, 2026) · `BFrimpong-sirs` (Stage 3) and `BFrimpong-sirs_hol` (Stage 4), both from Nov 7, 2026
 **Season:** October 7, 2026 – May 26, 2027 · forecasts due every Wednesday, 11 PM Eastern
 
 ---
@@ -21,11 +21,54 @@ Every forecast is pushed to the CDC's public repository before the true numbers 
 | 1 | Flat baseline on the log scale; data pipeline; validator; backtest | **Done** — first submission Oct 24, 2026 |
 | 2 | Damped growth model (recent log-linear trend, damped) | **Done** — live from Oct 31, 2026 |
 | 3 | SIRS model (RK4) with weekly R_t and susceptible depletion | **Done** — live from Nov 7, 2026 |
-| 4 | Learn the susceptible pool from the current season; uncertainty from an ensemble / particle filter | Next |
+| 4 | SIRS with school-holiday transmission and a 1-week admission lag | **Done** — live from Nov 7, 2026 (designated for the CDC ensemble) |
+| 4b | Uncertainty: ensemble / particle filter; post-holiday rebound | Next |
 | 5 | Hybrid: SIRS plus a small machine-learning error correction | Stretch |
 | 6 | Season evaluation and paper (medRxiv, then journal) | June 2027 |
 
-Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md) · [STAGE3_GUIDE.md](STAGE3_GUIDE.md)
+Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md) · [STAGE3_GUIDE.md](STAGE3_GUIDE.md) · [STAGE4_GUIDE.md](STAGE4_GUIDE.md)
+
+## Stage 4 results: school holidays drive the turning points
+
+**The discovery.** Stage 3 assumed growth slows gradually as susceptibles run out. The data say otherwise: weekly growth kept *accelerating* right up to each national peak, then collapsed within one or two weeks, and the turns line up with school breaks.
+
+| Season | Week with the most state peaks | States peaking that week | Follows |
+| --- | --- | --- | --- |
+| 2022–23 | Dec 3 | 24 of 52 | Thanksgiving break |
+| 2023–24 | Dec 30 | 27 of 52 | Winter break |
+| 2024–25 | Feb 8 (after a dip on Jan 4) | 20 of 52 | Winter-break dip, then rebound once schools reopened |
+| 2025–26 | Jan 3 | 37 of 52 | Winter break |
+
+![State peak weeks](results/08_peak_weeks.png)
+
+**The model.** The Stage 3 SIRS model with two additions: transmission is multiplied by a holiday factor on school-break days (Wednesday–Sunday of Thanksgiving week; Dec 21–Jan 3), and hospital admissions lag infections by 7 days. Two tuned settings, κ and the holiday factor, chosen together with the same fair-test rule.
+
+**Fair test.** The pair κ = 0.3, holiday factor 0.8 (20% less transmission during breaks) was best on the tuning seasons and also best over all three seasons:
+
+| Holiday factor (κ = 0.3) | 2023–24 | 2024–25 | 2025–26 (test) |
+| --- | --- | --- | --- |
+| 0.6 | 1.452 | 0.940 | 1.108 |
+| 0.7 | 1.020 | 0.797 | 0.881 |
+| **0.8** | **0.783** | **0.747** | **0.812** |
+| 1.0 (= Stage 3) | 0.870 | 0.874 | 0.997 |
+
+Within every κ tried (0.3, 0.4, 0.5) and every season, 0.8 was the best holiday factor on the grid; 0.9 was not tested.
+
+**Test season 2025–26, all models** (relative WIS vs baseline, lower is better):
+
+| | Stage 2 trend | Stage 3 SIRS | **Stage 4 holiday SIRS** |
+| --- | --- | --- | --- |
+| Overall | 1.032 | 0.997 | **0.812** |
+| Growth | 0.831 | 0.788 | **0.742** |
+| **Peak (± 2 weeks)** | 1.009 | 1.049 | **0.672** |
+| Decline | 1.110 | 0.987 | 0.997 |
+| Bias at the peak (admissions) | −130 | +320 | **−41** |
+
+![Holiday SIRS vs the other models](results/07_holiday_us_forecasts.png)
+
+**What this shows.** Letting transmission drop during school breaks fixes the turning point that every earlier model missed: the peak phase goes from the worst phase (Stage 3: 5% worse than the baseline) to the best (33% better), and the peak overshoot almost disappears. The remaining weakness is the decline: the model predicts a rebound when schools reopen. That rebound happened in 2024–25 but not in 2025–26, so the next step is to learn how much rebound to expect.
+
+**Live use.** `BFrimpong-sirs_hol` is submitted from Nov 7, 2026, and designated for the CDC ensemble. Thanksgiving 2026 (Nov 26) and the winter break are a genuine prospective test of the holiday effect.
 
 ## Stage 3 results: the SIRS model
 
@@ -132,6 +175,12 @@ The ranges are honest one week out but too narrow further ahead, because weekly 
 2. Median *k* weeks ahead = last value × exp(*r* × (φ + φ² + … + φᵏ)), with damping φ = 0.4, so each extra week keeps only 40% of the previous week's growth.
 3. Same spread as the baseline, centred on the new median.
 
+**Stage 4 — holiday SIRS**
+1. As Stage 3, with κ = 0.3.
+2. Transmission × 0.8 on school-break days (Thanksgiving Wed–Sun; Dec 21–Jan 3).
+3. Admissions lag infections by 7 days; the measured R_t is divided by the average holiday factor behind it to give term-time transmission.
+4. Same spread as the baseline, centred on the median.
+
 **Stage 3 — SIRS**
 1. R_t = 1 + (*r* ÷ 7) ÷ γ from the same growth rate; γ = 1/3 per day.
 2. Susceptibles left s_now = 1 − κ × (season so far ÷ typical season), κ = 0.4.
@@ -146,13 +195,15 @@ flu-forecasting-sirs/
 ├── README.md
 ├── STAGE1_GUIDE.md                 Stage 1 guide and how to submit
 ├── STAGE2_GUIDE.md                 Stage 2 guide and the two-model weekly routine
-├── STAGE3_GUIDE.md                 Stage 3 guide and the three-model weekly routine
+├── STAGE3_GUIDE.md                 Stage 3 guide
+├── STAGE4_GUIDE.md                 Stage 4 guide and the four-model weekly routine
 ├── requirements.txt                pinned package versions
 ├── scripts/
 │   ├── common.py                   shared settings: names, quantile levels, paths
 │   ├── baseline_model.py           Stage 1 model
 │   ├── trend_model.py              Stage 2 model
 │   ├── sirs_model.py               Stage 3 model (SIRS equations, RK4)
+│   ├── holiday_sirs_model.py       Stage 4 model (SIRS + school holidays + admission lag)
 │   ├── scoring.py                  WIS, coverage and backtest helpers
 │   ├── 01_download_data.py         download latest data + dated snapshot
 │   ├── 02_explore_data.py          season plots and peaks
@@ -162,15 +213,19 @@ flu-forecasting-sirs/
 │   ├── 06_trend_forecast.py        weekly trend submission file
 │   ├── 07_backtest_compare.py      tune and test the trend model against the baseline
 │   ├── 08_sirs_forecast.py         weekly SIRS submission file
-│   └── 09_backtest_sirs.py         tune and test SIRS against baseline and trend
+│   ├── 09_backtest_sirs.py         tune and test SIRS against baseline and trend
+│   ├── 10_holiday_forecast.py      weekly holiday-SIRS submission file
+│   └── 11_backtest_holiday.py      tune and test holiday SIRS against Stages 1-3
 ├── model-metadata/
 │   ├── BFrimpong-baseline.yml
 │   ├── BFrimpong-trend.yml
-│   └── BFrimpong-sirs.yml
+│   ├── BFrimpong-sirs.yml
+│   └── BFrimpong-sirs_hol.yml
 ├── model-output/
 │   ├── BFrimpong-baseline/         one forecast file per week
 │   ├── BFrimpong-trend/
-│   └── BFrimpong-sirs/
+│   ├── BFrimpong-sirs/
+│   └── BFrimpong-sirs_hol/
 ├── data/                           latest data + data/raw/ dated snapshots
 └── results/                        plots and score tables
 ```
@@ -187,20 +242,24 @@ python scripts/02_explore_data.py
 python scripts/03_baseline_forecast.py
 python scripts/06_trend_forecast.py
 python scripts/08_sirs_forecast.py
+python scripts/10_holiday_forecast.py
 python scripts/04_validate_submission.py
 python scripts/05_backtest_baseline.py
 python scripts/07_backtest_compare.py
 python scripts/07_backtest_compare.py --tune
 python scripts/09_backtest_sirs.py
 python scripts/09_backtest_sirs.py --tune
+python scripts/11_backtest_holiday.py
+python scripts/11_backtest_holiday.py --tune
 ```
 
-The two `--tune` commands redo the tuning grids and take about 5 and 10 minutes.
+The three `--tune` commands redo the tuning grids and take about 5, 10 and 25 minutes.
 
-**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06, 08 and 04, then submit the files (see [STAGE3_GUIDE.md](STAGE3_GUIDE.md), Part 3).
+**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06, 08, 10 and 04, then submit the files (see [STAGE4_GUIDE.md](STAGE4_GUIDE.md), Part 3).
 
 ## Data
 
+- **School holidays:** a fixed typical US K-12 calendar (Thanksgiving Wed–Sun; Dec 21–Jan 3).
 - **Target:** NHSN Weekly Hospital Respiratory Dataset, laboratory-confirmed influenza admissions, as published in the FluSight hub's `target-data/` folder.
 - **Locations and populations:** FluSight hub `auxiliary-data/locations.csv`.
 - All data are public, aggregated counts; no individual-level data are used.

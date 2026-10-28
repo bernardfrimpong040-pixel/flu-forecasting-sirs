@@ -29,6 +29,10 @@ TREND_MODEL_ID = f"{TEAM_ABBR}-{TREND_MODEL_ABBR}"
 SIRS_MODEL_ABBR = "sirs"
 SIRS_MODEL_ID = f"{TEAM_ABBR}-{SIRS_MODEL_ABBR}"
 
+# Stage 4 adds the SIRS model with school-holiday transmission.
+HOLIDAY_MODEL_ABBR = "sirs_hol"
+HOLIDAY_MODEL_ID = f"{TEAM_ABBR}-{HOLIDAY_MODEL_ABBR}"
+
 
 # --- Folders inside this repository --------------------------------------
 # Path(__file__) is this file; .parent is scripts/; .parent again is the repo.
@@ -42,6 +46,8 @@ TREND_OUTPUT_DIR = REPO_DIR / "model-output" / TREND_MODEL_ID
 TREND_METADATA_FILE = REPO_DIR / "model-metadata" / f"{TREND_MODEL_ID}.yml"
 SIRS_OUTPUT_DIR = REPO_DIR / "model-output" / SIRS_MODEL_ID
 SIRS_METADATA_FILE = REPO_DIR / "model-metadata" / f"{SIRS_MODEL_ID}.yml"
+HOLIDAY_OUTPUT_DIR = REPO_DIR / "model-output" / HOLIDAY_MODEL_ID
+HOLIDAY_METADATA_FILE = REPO_DIR / "model-metadata" / f"{HOLIDAY_MODEL_ID}.yml"
 
 # The "latest" copies that the other scripts read.
 TARGET_FILE = DATA_DIR / "target-hospital-admissions.csv"

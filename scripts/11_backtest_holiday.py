@@ -97,7 +97,7 @@ def run_tuning(data, locations):
             row = {"kappa": kappa, "holiday_factor": factor}
             for season in scoring.SEASONS:
                 sc = scoring.backtest(holiday_sirs_model, data, locations, season,
-                                      kappa=kappa, factor=factor)
+                                      kappa=kappa, factor=factor, rebound=1.0)
                 row[season] = round(scoring.relative_wis(sc, base[season]), 3)
             row["tuning_mean"] = round(np.mean([row[s] for s in TUNING_SEASONS]), 3)
             row["all_three_mean"] = round(np.mean([row[s] for s in scoring.SEASONS]), 3)
@@ -170,7 +170,8 @@ def main():
         "Stage 2 trend": scoring.backtest(trend_model, data, locations, TEST_SEASON, **STAGE2_TEST),
         "Stage 3 SIRS": scoring.backtest(sirs_model, data, locations, TEST_SEASON, **STAGE3_TEST),
         "Stage 4 holiday SIRS": scoring.backtest(holiday_sirs_model, data, locations, TEST_SEASON,
-                                                 kappa=TEST_KAPPA, factor=TEST_FACTOR),
+                                                 kappa=TEST_KAPPA, factor=TEST_FACTOR,
+                                                 rebound=1.0),   # Stage 4: full rebound
     }
     base = scores["Stage 1 baseline"]
     others = ["Stage 2 trend", "Stage 3 SIRS", "Stage 4 holiday SIRS"]

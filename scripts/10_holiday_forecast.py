@@ -42,7 +42,8 @@ def main():
           f"{reference_date - timedelta(days=3)}, 11 PM Eastern)")
     print(f"Latest week in the data:   {latest}")
     print(f"Model settings:            kappa = {holiday_sirs_model.KAPPA}, "
-          f"holiday factor = {holiday_sirs_model.HOLIDAY_FACTOR}, lag = {holiday_sirs_model.LAG_DAYS} days")
+          f"holiday factor = {holiday_sirs_model.HOLIDAY_FACTOR}, "
+          f"rebound = {holiday_sirs_model.REBOUND}, lag = {holiday_sirs_model.LAG_DAYS} days")
     if latest < expected:
         print(f"WARNING: expected data through {expected}. Run 01_download_data.py after "
               "the hub updates on Wednesday, or the forecast will be one week stale.")

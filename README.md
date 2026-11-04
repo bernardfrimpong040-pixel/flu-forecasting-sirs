@@ -3,7 +3,7 @@
 Real-time forecasts of weekly influenza hospital admissions for all 50 US states, DC, Puerto Rico and the nation, submitted every week to the CDC's **FluSight 2026–27** forecasting challenge. The project builds from a simple baseline to a mechanistic **SIRS differential-equation model**, and ends with a paper comparing the approaches on a full season of live, prospective forecasts.
 
 **Author:** Bernard Frimpong — M.S. Applied Mathematics, University of Akron
-**FluSight team / models:** `BFrimpong-baseline` (Stage 1, since Oct 24, 2026) · `BFrimpong-trend` (Stage 2, from Oct 31, 2026) · `BFrimpong-sirs` (Stage 3) and `BFrimpong-sirs_hol` (Stage 4), both from Nov 7, 2026
+**FluSight team / models:** `BFrimpong-baseline` (Stage 1, since Oct 24, 2026) · `BFrimpong-trend` (Stage 2, from Oct 31, 2026) · `BFrimpong-sirs` (Stage 3) and `BFrimpong-sirs_hol` (Stages 4 + 4b), both from Nov 7, 2026
 **Season:** October 7, 2026 – May 26, 2027 · forecasts due every Wednesday, 11 PM Eastern
 
 ---
@@ -22,11 +22,43 @@ Every forecast is pushed to the CDC's public repository before the true numbers 
 | 2 | Damped growth model (recent log-linear trend, damped) | **Done** — live from Oct 31, 2026 |
 | 3 | SIRS model (RK4) with weekly R_t and susceptible depletion | **Done** — live from Nov 7, 2026 |
 | 4 | SIRS with school-holiday transmission and a 1-week admission lag | **Done** — live from Nov 7, 2026 (designated for the CDC ensemble) |
-| 4b | Uncertainty: ensemble / particle filter; post-holiday rebound | Next |
+| 4b | Partial rebound after the winter break; ensembles compared | **Done** — part of `sirs_hol` from Nov 7, 2026 |
 | 5 | Hybrid: SIRS plus a small machine-learning error correction | Stretch |
 | 6 | Season evaluation and paper (medRxiv, then journal) | June 2027 |
 
-Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md) · [STAGE3_GUIDE.md](STAGE3_GUIDE.md) · [STAGE4_GUIDE.md](STAGE4_GUIDE.md)
+Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md) · [STAGE3_GUIDE.md](STAGE3_GUIDE.md) · [STAGE4_GUIDE.md](STAGE4_GUIDE.md) · [STAGE4B_GUIDE.md](STAGE4B_GUIDE.md)
+
+## Stage 4b results: transmission only partly returns after the winter break
+
+**The problem.** With full transmission back on January 4, the Stage 4 model predicted a second rise in mid-January. That happened in 2024–25 but not in 2023–24 or 2025–26.
+
+**The fix.** One new setting, the *rebound*: from January 4 to July 31 transmission is multiplied by ρ. ρ = 1.0 is the Stage 4 model; ρ = 0.9 means transmission returns to 90% of its pre-break level. Once all recent growth is measured after the break, ρ cancels out, so it only changes forecasts that cross January 4.
+
+**Fair test.** Grid over κ (0.3, 0.4), holiday factor (0.8, 0.9) and ρ (1.0, 0.9, 0.8). Best on the tuning seasons and on all three: κ = 0.3, factor 0.8, **ρ = 0.9**.
+
+| κ = 0.3, factor 0.8 | 2023–24 | 2024–25 | 2025–26 (test) | Tuning mean |
+| --- | --- | --- | --- | --- |
+| ρ = 1.0 (Stage 4) | 0.783 | **0.747** | 0.812 | 0.765 |
+| **ρ = 0.9 (Stage 4b)** | **0.641** | 0.792 | **0.656** | **0.716** |
+| ρ = 0.8 | 0.676 | 0.910 | 0.606 | 0.793 |
+
+The rebound season 2024–25 gets slightly worse (0.747 → 0.792); the other two improve a lot.
+
+**Test season 2025–26** (relative WIS vs baseline):
+
+| | Stage 4 | **Stage 4b** | Ensemble B |
+| --- | --- | --- | --- |
+| Overall | 0.812 | **0.656** | 0.661 |
+| Growth | 0.742 | **0.706** | 0.709 |
+| Peak (± 2 weeks) | 0.672 | **0.601** | 0.603 |
+| Decline | 0.997 | **0.710** | 0.720 |
+| Bias in the decline (admissions) | +92 | **+34** | |
+
+**Ensembles.** Four mixtures of model versions were compared (two κ values; three rebounds; both). None beat the single tuned model on the tuning seasons (best: three rebounds, 0.726 vs 0.716), and mixing in κ = 0.4 hurt the large 2024–25 season. The single model is submitted; the ensembles are reported in the paper.
+
+![Stage 4 vs Stage 4b](results/09_rebound_us_forecasts.png)
+
+**Live use.** `BFrimpong-sirs_hol` uses ρ = 0.9 from its first submission on Nov 7, 2026.
 
 ## Stage 4 results: school holidays drive the turning points
 
@@ -180,6 +212,7 @@ The ranges are honest one week out but too narrow further ahead, because weekly 
 2. Transmission × 0.8 on school-break days (Thanksgiving Wed–Sun; Dec 21–Jan 3).
 3. Admissions lag infections by 7 days; the measured R_t is divided by the average holiday factor behind it to give term-time transmission.
 4. Same spread as the baseline, centred on the median.
+5. Stage 4b: from Jan 4 to Jul 31 transmission × 0.9 (it only partly returns after the winter break).
 
 **Stage 3 — SIRS**
 1. R_t = 1 + (*r* ÷ 7) ÷ γ from the same growth rate; γ = 1/3 per day.
@@ -197,13 +230,15 @@ flu-forecasting-sirs/
 ├── STAGE2_GUIDE.md                 Stage 2 guide and the two-model weekly routine
 ├── STAGE3_GUIDE.md                 Stage 3 guide
 ├── STAGE4_GUIDE.md                 Stage 4 guide and the four-model weekly routine
+├── STAGE4B_GUIDE.md                Stage 4b guide and direct upload links
 ├── requirements.txt                pinned package versions
 ├── scripts/
 │   ├── common.py                   shared settings: names, quantile levels, paths
 │   ├── baseline_model.py           Stage 1 model
 │   ├── trend_model.py              Stage 2 model
 │   ├── sirs_model.py               Stage 3 model (SIRS equations, RK4)
-│   ├── holiday_sirs_model.py       Stage 4 model (SIRS + school holidays + admission lag)
+│   ├── holiday_sirs_model.py       Stage 4/4b model (SIRS + school holidays + lag + rebound)
+│   ├── ensemble_sirs_model.py      Stage 4b ensembles (mixtures of holiday-SIRS versions)
 │   ├── scoring.py                  WIS, coverage and backtest helpers
 │   ├── 01_download_data.py         download latest data + dated snapshot
 │   ├── 02_explore_data.py          season plots and peaks
@@ -215,7 +250,8 @@ flu-forecasting-sirs/
 │   ├── 08_sirs_forecast.py         weekly SIRS submission file
 │   ├── 09_backtest_sirs.py         tune and test SIRS against baseline and trend
 │   ├── 10_holiday_forecast.py      weekly holiday-SIRS submission file
-│   └── 11_backtest_holiday.py      tune and test holiday SIRS against Stages 1-3
+│   ├── 11_backtest_holiday.py      tune and test holiday SIRS against Stages 1-3
+│   └── 12_backtest_rebound.py      tune the rebound, compare ensembles, test Stage 4b
 ├── model-metadata/
 │   ├── BFrimpong-baseline.yml
 │   ├── BFrimpong-trend.yml
@@ -251,11 +287,13 @@ python scripts/09_backtest_sirs.py
 python scripts/09_backtest_sirs.py --tune
 python scripts/11_backtest_holiday.py
 python scripts/11_backtest_holiday.py --tune
+python scripts/12_backtest_rebound.py
+python scripts/12_backtest_rebound.py --tune --ensembles
 ```
 
-The three `--tune` commands redo the tuning grids and take about 5, 10 and 25 minutes.
+The `--tune` commands redo the tuning grids and take about 5, 10, 25 and 45 minutes (the last one includes the ensembles).
 
-**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06, 08, 10 and 04, then submit the files (see [STAGE4_GUIDE.md](STAGE4_GUIDE.md), Part 3).
+**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06, 08, 10 and 04, then submit the files with the direct links in [STAGE4B_GUIDE.md](STAGE4B_GUIDE.md), Part 3.
 
 ## Data
 

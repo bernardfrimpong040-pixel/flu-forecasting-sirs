@@ -98,8 +98,8 @@ def validate_forecast(path):
     check(never_decreases.all(), "values never decrease as the quantile level rises")
 
     with_pop = hosp.merge(locations[["location", "population"]], on="location")
-    check((with_pop["value"] <= 0.30 * with_pop["population"]).all(),
-          "plausibility: no value above 30% of the location's population")
+    check((with_pop["value"] <= common.MAX_FRACTION_OF_POPULATION * with_pop["population"]).all(),
+          "plausibility: no value above 0.1% of the location's population (hub rule)")
 
     # --- 6. Submission window (a warning, not a failure) -------------------
     # The window runs Sunday 00:00 to Wednesday 11 PM Eastern before the reference date.

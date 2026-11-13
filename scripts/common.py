@@ -85,6 +85,29 @@ def load_target_data():
     return data.sort_values(["location", "date"]).reset_index(drop=True)
 
 
+# The hub rejects any weekly value above 0.1% of a location's population
+# (rule added in November 2026; it was 30% before).
+MAX_FRACTION_OF_POPULATION = 0.001
+
+
+def cap_to_population(forecast, locations_table):
+    """Lower any forecast value above the hub's limit to the limit itself.
+
+    Only the far upper tail is affected (e.g. the 97.5% and 99% quantiles three weeks
+    ahead in a small state with a jumpy history). The values stay whole numbers and
+    still never decrease as the quantile level rises, because the cap is the same for
+    every quantile of a location.
+    """
+    limit = (locations_table.set_index("location")["population"]
+             * MAX_FRACTION_OF_POPULATION).astype(int)          # round down
+    capped = forecast.copy()
+    capped["value"] = capped["value"].clip(upper=capped["location"].map(limit))
+    n_changed = int((capped["value"] != forecast["value"]).sum())
+    if n_changed:
+        print(f"Capped {n_changed} value(s) at 0.1% of the location's population (hub rule).")
+    return capped
+
+
 def load_locations():
     """Read the hub's list of locations (code, name, population)."""
     return pd.read_csv(LOCATIONS_FILE, dtype={"location": str})

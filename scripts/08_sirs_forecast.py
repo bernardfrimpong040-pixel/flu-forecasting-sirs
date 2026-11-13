@@ -50,6 +50,7 @@ def main():
     # 3. Make the forecast for every location in the hub's list.
     locations = common.load_locations()["location"].tolist()
     forecast = sirs_model.make_forecast(data, reference_date, locations)
+    forecast = common.cap_to_population(forecast, common.load_locations())   # hub's 0.1% rule
 
     # 4. Save it with the exact file name the hub requires.
     common.SIRS_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

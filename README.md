@@ -23,10 +23,32 @@ Every forecast is pushed to the CDC's public repository before the true numbers 
 | 3 | SIRS model (RK4) with weekly R_t and susceptible depletion | **Done** — live from Nov 7, 2026 |
 | 4 | SIRS with school-holiday transmission and a 1-week admission lag | **Done** — live from Nov 7, 2026 (designated for the CDC ensemble) |
 | 4b | Partial rebound after the winter break; ensembles compared | **Done** — part of `sirs_hol` from Nov 7, 2026 |
+| 5 | Live scoring of submitted forecasts; hub 0.1% population cap | **In progress** — updated weekly |
+| 5b | Backfill correction of the most recent week | Next |
 | 5 | Hybrid: SIRS plus a small machine-learning error correction | Stretch |
 | 6 | Season evaluation and paper (medRxiv, then journal) | June 2027 |
 
-Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md) · [STAGE3_GUIDE.md](STAGE3_GUIDE.md) · [STAGE4_GUIDE.md](STAGE4_GUIDE.md) · [STAGE4B_GUIDE.md](STAGE4B_GUIDE.md)
+Stage guides: [STAGE1_GUIDE.md](STAGE1_GUIDE.md) · [STAGE2_GUIDE.md](STAGE2_GUIDE.md) · [STAGE3_GUIDE.md](STAGE3_GUIDE.md) · [STAGE4_GUIDE.md](STAGE4_GUIDE.md) · [STAGE4B_GUIDE.md](STAGE4B_GUIDE.md) · [STAGE5_GUIDE.md](STAGE5_GUIDE.md)
+
+## Live season 2026–27 (Stage 5)
+
+`scripts/13_score_live.py` downloads the forecasts we actually submitted from the CDC hub, plus the CDC FluSight-ensemble and FluSight-baseline, and scores every forecast whose target week has been reported.
+
+**So far** (data through the week ending Nov 14, 2026):
+
+| Model | Weeks | Scored | Rel. WIS vs our baseline | vs CDC ensemble | 95% coverage |
+| --- | --- | --- | --- | --- | --- |
+| Baseline | 4 | 530 | 1.000 | 2.114 | 0.98 |
+| Trend | 3 | 318 | 0.824 | 1.601 | 0.98 |
+| SIRS | 2 | 159 | 0.972 | 1.485 | 0.98 |
+| Holiday SIRS | 2 | 159 | 0.992 | 1.516 | 0.97 |
+| CDC ensemble | 4 | 530 | 0.473 | 1.000 | 0.99 |
+
+The CDC ensemble is well ahead so far. Every one of our forecasts started too low in a fast-growing epidemic, partly because the newest week has later been revised **up by 6–9%** each time (backfill). The SIRS models have been scored on only two weeks of steady growth; their test is at the turning points, starting with Thanksgiving (week ending Dec 5).
+
+**Hub rule.** Since November 2026 the hub rejects any value above 0.1% of a location's population, so every model caps its quantiles at that limit (2–34 tail values per model per week).
+
+![Live US forecasts](results/10_live_us_forecasts.png)
 
 ## Stage 4b results: transmission only partly returns after the winter break
 
@@ -231,6 +253,7 @@ flu-forecasting-sirs/
 ├── STAGE3_GUIDE.md                 Stage 3 guide
 ├── STAGE4_GUIDE.md                 Stage 4 guide and the four-model weekly routine
 ├── STAGE4B_GUIDE.md                Stage 4b guide and direct upload links
+├── STAGE5_GUIDE.md                 Stage 5 guide: live scoring and the weekly routine
 ├── requirements.txt                pinned package versions
 ├── scripts/
 │   ├── common.py                   shared settings: names, quantile levels, paths
@@ -251,7 +274,8 @@ flu-forecasting-sirs/
 │   ├── 09_backtest_sirs.py         tune and test SIRS against baseline and trend
 │   ├── 10_holiday_forecast.py      weekly holiday-SIRS submission file
 │   ├── 11_backtest_holiday.py      tune and test holiday SIRS against Stages 1-3
-│   └── 12_backtest_rebound.py      tune the rebound, compare ensembles, test Stage 4b
+│   ├── 12_backtest_rebound.py      tune the rebound, compare ensembles, test Stage 4b
+│   └── 13_score_live.py            score the forecasts actually submitted this season
 ├── model-metadata/
 │   ├── BFrimpong-baseline.yml
 │   ├── BFrimpong-trend.yml
@@ -289,11 +313,12 @@ python scripts/11_backtest_holiday.py
 python scripts/11_backtest_holiday.py --tune
 python scripts/12_backtest_rebound.py
 python scripts/12_backtest_rebound.py --tune --ensembles
+python scripts/13_score_live.py
 ```
 
 The `--tune` commands redo the tuning grids and take about 5, 10, 25 and 45 minutes (the last one includes the ensembles).
 
-**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06, 08, 10 and 04, then submit the files with the direct links in [STAGE4B_GUIDE.md](STAGE4B_GUIDE.md), Part 3.
+**Weekly routine** (Wednesday afternoon, after the CDC data update): scripts 01, 03, 06, 08 and 10 with `--reference-date` set to that week's Saturday, then 04 and 13, then submit the four files with the direct links (see [STAGE5_GUIDE.md](STAGE5_GUIDE.md), Part 3).
 
 ## Data
 
